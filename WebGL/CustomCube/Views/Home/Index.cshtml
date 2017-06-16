@@ -39,32 +39,56 @@
         function initVertexBuffers(gl) {
             //构造一个菱形
             var pos = new Float32Array([
-                0.0, 1.5, 0.0,                      //v0
-                - 1.0, 0.0, 0.0,                    //v1
-                1.0, 0.0, 0.0,                      //v2
-                0.0, 0.0, 1.0,                      //v3
-                0.0, 0.0, -1.0,                     //v4
-                0.0, -1.5, 0.0,                      //v5
+                //0.0, 1.5, 0.0,                      //v0
+                //- 1.0, 0.0, 0.0,                    //v1
+                //1.0, 0.0, 0.0,                      //v2
+                //0.0, 0.0, 1.0,                      //v3
+                //0.0, 0.0, -1.0,                     //v4
+                //0.0, -1.5, 0.0,                      //v5
+
+
+                1.0, 1.0, 1.0,  // v0 White
+                -1.0, 1.0, 1.0,   // v1 Magenta
+                -1.0, -1.0, 1.0,  // v2 Red
+                1.0, -1.0, 1.0,  // v3 Yellow
+                1.0, -1.0, -1.0,  // v4 Green
+                1.0, 1.0, -1.0,  // v5 Cyan
+                -1.0, 1.0, -1.0, // v6 Blue
+                -1.0, -1.0, -1.0,   // v7 Black
             ]);
 
             var col = new Float32Array([
-                1.0, 1.0, 1.0, 0.5,// v0 White
-                1.0, 0.0, 1.0, 0.5,  // v1 Magenta
-                1.0, 0.0, 0.0, 0.5,  // v2 Red
-                1.0, 1.0, 0.0, 0.5,  // v3 Yellow
-                0.0, 1.0, 0.0, 0.5,  // v4 Green
-                0.0, 1.0, 1.0, 0.5,  // v5 Cyan
+                //1.0, 1.0, 1.0, 0.5,// v0 White
+                //1.0, 0.0, 1.0, 0.5,  // v1 Magenta
+                //1.0, 0.0, 0.0, 0.5,  // v2 Red
+                //1.0, 1.0, 0.0, 0.5,  // v3 Yellow
+                //0.0, 1.0, 0.0, 0.5,  // v4 Green
+                //0.0, 1.0, 1.0, 0.5,  // v5 Cyan
+                 1.0, 1.0, 1.0,  // v0 White
+                 1.0, 0.0, 1.0,  // v1 Magenta
+                 1.0, 0.0, 0.0,  // v2 Red
+                 1.0, 1.0, 0.0,  // v3 Yellow
+                 0.0, 1.0, 0.0,  // v4 Green
+                 0.0, 1.0, 1.0,  // v5 Cyan
+                 0.0, 0.0, 1.0,  // v6 Blue
+                 0.0, 0.0, 0.0   // v7 Black
             ]);
 
             var index = new Uint8Array([
-                0, 1, 2,
-                0, 2, 3,
-                0, 3, 4,
-                0, 4, 1,
-                1, 4, 5,
-                2, 1, 5,
-                3, 2, 5,
-                4, 3, 5
+                //0, 1, 2,
+                //0, 2, 3,
+                //0, 3, 4,
+                //0, 4, 1,
+                //1, 4, 5,
+                //2, 1, 5,
+                //3, 2, 5,
+                //4, 3, 5
+                    0, 1, 2, 0, 2, 3,    // front
+    0, 3, 4, 0, 4, 5,    // right
+    0, 5, 6, 0, 6, 1,    // up
+    1, 6, 7, 1, 7, 2,    // left
+    7, 4, 3, 7, 3, 2,    // down
+    4, 7, 6, 4, 6, 5     // back
             ]);
 
             var pbo = new gl.createBuffer();
@@ -92,23 +116,48 @@
         var ANGLE_STEP = 30.0;
 
         var g_last = Date.now();
-        function animate(angle) {
-            // Calculate the elapsed time
-            var now = Date.now();
-            var elapsed = now - g_last;
-            g_last = now;
-            // Update the current rotation angle (adjusted by the elapsed time)
-            var newAngle = angle + (ANGLE_STEP * elapsed) / 1000.0;
-            return newAngle %= 360;
+
+        function initEventHandlers(canvas, currentAngle) {
+            var dragging = false;         // Dragging or not
+            var lastX = -1, lastY = -1;   // Last position of the mouse
+
+            canvas.onmousedown = function (ev) {   // Mouse is pressed
+                var x = ev.clientX, y = ev.clientY;
+                // Start dragging if a moue is in <canvas>
+                var rect = ev.target.getBoundingClientRect();
+                if (rect.left <= x && x < rect.right && rect.top <= y && y < rect.bottom) {
+                    lastX = x; lastY = y;
+                    dragging = true;
+                }
+            };
+
+            canvas.onmouseup = function (ev) { dragging = false; }; // Mouse is released
+
+            canvas.onmousemove = function (ev) { // Mouse is moved
+                var x = ev.clientX, y = ev.clientY;
+                if (dragging) {
+                    var factor = 100 / canvas.height; // The rotation ratio
+                    var dx = factor * (x - lastX);
+                    var dy = factor * (y - lastY);
+                    // Limit x-axis rotation angle to -90 to 90 degrees
+                    currentAngle[0] = Math.max(Math.min(currentAngle[0] + dy, 90.0), -90.0);
+                    currentAngle[1] = currentAngle[1] + dx;
+                }
+                lastX = x, lastY = y;
+            };
         }
 
-        function draw(gl, n, currentAngle, mvpMatrix, u_MvpMatrix) {
+        function draw(gl, n, currentAngle, viewProjMatrix, u_MvpMatrix) {
             // Set the rotation matrix
             //mvpMatrix.setRotate(currentAngle, 0, 0, 1);
             //mvpMatrix.translate(0.35, 0, 0);
+            var g_MvpMatrix = new Matrix4(); // Model view projection matrix
+            g_MvpMatrix.set(viewProjMatrix);
+            g_MvpMatrix.rotate(currentAngle[0], 1.0, 0.0, 0.0); // Rotation around x-axis
+            g_MvpMatrix.rotate(currentAngle[1], 0.0, 1.0, 0.0); // Rotation around y-axis
 
             // Pass the rotation matrix to the vertex shader
-            gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
+            gl.uniformMatrix4fv(u_MvpMatrix, false, g_MvpMatrix.elements);
 
             // Clear <canvas>
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -135,18 +184,21 @@
             var u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix');
             if (!u_MvpMatrix) return;
 
-            var mvpMatrix = new Matrix4();
-            mvpMatrix.setPerspective(30, 1, 1, 100);
-            mvpMatrix.lookAt(3, 3, 500, 0, 0, 0, 0, 1, 0);
+            //var mvpMatrix = new Matrix4();
+            //mvpMatrix.setPerspective(30, 1, 1, 100);
+            //mvpMatrix.lookAt(3, 3, 500, 0, 0, 0, 0, 1, 0);
+            var viewProjMatrix = new Matrix4();
+            viewProjMatrix.setPerspective(30.0, 1.0, 1.0, 100.0);
+            viewProjMatrix.lookAt(3.0, 3.0, 7.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
             //gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
             //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             //gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
 
-            var currentAngle = 0.0;
+            var currentAngle = [0.0, 0.0]; // Current rotation angle ([x-axis, y-axis] degrees)
+            initEventHandlers(canvas, currentAngle);
             var tick = function () {
-                //currentAngle = animate(currentAngle);  // Update the rotation angle
-                draw(gl, n, currentAngle, mvpMatrix, u_MvpMatrix);   // Draw the triangle
+                draw(gl, n, currentAngle, viewProjMatrix, u_MvpMatrix);   // Draw the triangle
                 requestAnimationFrame(tick, canvas); // Request that the browser ?calls tick
             };
             tick();
